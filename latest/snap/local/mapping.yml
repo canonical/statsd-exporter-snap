@@ -1,0 +1,12 @@
+# StatsD Exporter Mapping Configuration
+# See https://github.com/prometheus/statsd_exporter#metric-mapping-and-configuration
+
+# Default configuration with modern defaults
+defaults:
+  observer_type: histogram
+  histogram_options:
+    native_histogram_bucket_factor: 1.1
+    native_histogram_max_buckets: 256
+  match_type: glob
+
+mappings: []

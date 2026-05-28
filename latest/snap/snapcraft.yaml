@@ -1,0 +1,62 @@
+name: statsd-exporter
+version: '0.29.0'
+summary: StatsD to Prometheus metrics exporter
+description: |
+  The StatsD exporter is a drop-in replacement for StatsD. It receives
+  StatsD-style metrics and exports them as Prometheus metrics.
+
+  Key features:
+  - Translates StatsD metrics to Prometheus metrics via configurable mapping rules
+  - Supports multiple tagging formats: Librato, InfluxDB, DogStatsD, and SignalFX-style
+  - Converts gauges, counters, timers, histograms, and distributions to Prometheus equivalents
+
+  Default ports:
+  - UDP/TCP listener: 9125
+  - Metrics endpoint: 9102
+
+  Configuration:
+  - Mapping config: /etc/statsd-exporter/mapping.yml
+contact: luca.bello@canonical.com
+base: core24
+platforms:
+  amd64:
+  arm64:
+confinement: strict
+plugs:
+  etc-statsd-exporter-config:
+    interface: system-files
+    read:
+      - /etc/statsd-exporter
+apps:
+  statsd-exporter:
+    daemon: simple
+    command: command-wrapper
+    install-mode: disable
+    restart-condition: on-failure
+    plugs:
+      - network
+      - network-bind
+      - etc-statsd-exporter-config
+parts:
+  wrapper:
+    plugin: dump
+    source: ./snap
+    source-type: local
+    override-build: |
+      mkdir -p $CRAFT_PART_INSTALL/etc
+      cp local/command-wrapper $CRAFT_PART_INSTALL/
+      cp local/mapping.yml $CRAFT_PART_INSTALL/etc/mapping.yml
+  statsd-exporter:
+    plugin: go
+    source: https://github.com/prometheus/statsd_exporter.git
+    source-type: git
+    source-tag: v0.29.0
+    source-depth: 1
+    build-snaps:
+      - go/1.25/stable
+    build-environment:
+      - CGO_ENABLED: "0"
+      - GOOS: linux
+    override-build: |
+      craftctl default
+      strip -s $CRAFT_PART_INSTALL/bin/*

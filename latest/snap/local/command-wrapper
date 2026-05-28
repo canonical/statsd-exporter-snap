@@ -1,0 +1,24 @@
+#!/bin/bash
+set -e
+
+CONFIG_DIR="/etc/statsd-exporter"
+SNAP_CONFIG="$SNAP/etc/mapping.yml"
+
+ARGS=""
+
+# Check for external config directory first
+if [ -d "$CONFIG_DIR" ]; then
+    for config_file in "$CONFIG_DIR"/*.yml "$CONFIG_DIR"/*.yaml; do
+        if [ -f "$config_file" ]; then
+            ARGS="--statsd.mapping-config=$config_file"
+            break
+        fi
+    done
+fi
+
+# Fall back to snap-provided default config
+if [ -z "$ARGS" ] && [ -f "$SNAP_CONFIG" ]; then
+    ARGS="--statsd.mapping-config=$SNAP_CONFIG"
+fi
+
+exec "$SNAP/bin/statsd_exporter" $ARGS
