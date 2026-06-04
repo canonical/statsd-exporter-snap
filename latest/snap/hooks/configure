@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+# Validate port configuration values
+validate_port() {
+    local name="$1"
+    local value="$2"
+    
+    if [ -n "$value" ]; then
+        if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 1 ] || [ "$value" -gt 65535 ]; then
+            echo "Error: $name must be a valid port number (1-65535)" >&2
+            exit 1
+        fi
+    fi
+}
+
+# Read and validate port settings
+WEB_PORT=$(snapctl get web.listen-port)
+STATSD_UDP_PORT=$(snapctl get statsd.listen-udp-port)
+STATSD_TCP_PORT=$(snapctl get statsd.listen-tcp-port)
+
+validate_port "web.listen-port" "$WEB_PORT"
+validate_port "statsd.listen-udp-port" "$STATSD_UDP_PORT"
+validate_port "statsd.listen-tcp-port" "$STATSD_TCP_PORT"
+
+# Restart the service if it's running to pick up new configuration
+if snapctl services statsd-exporter.statsd-exporter | grep -q "active"; then
+    snapctl restart statsd-exporter.statsd-exporter
+fi

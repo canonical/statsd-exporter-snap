@@ -49,8 +49,11 @@ parts:
     source-type: local
     override-build: |
       mkdir -p $CRAFT_PART_INSTALL/etc
+      mkdir -p $CRAFT_PART_INSTALL/meta/hooks
       cp local/command-wrapper $CRAFT_PART_INSTALL/
       cp local/mapping.yml $CRAFT_PART_INSTALL/etc/mapping.yml
+      cp hooks/configure $CRAFT_PART_INSTALL/meta/hooks/configure
+      chmod +x $CRAFT_PART_INSTALL/meta/hooks/configure
   statsd-exporter:
     plugin: go
     source: https://github.com/prometheus/statsd_exporter.git
