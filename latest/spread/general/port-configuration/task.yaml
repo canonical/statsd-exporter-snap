@@ -1,0 +1,143 @@
+summary: Test that statsd-exporter port configuration works correctly
+
+systems: [ubuntu-24.04]
+
+prepare: |
+  # Install required tools
+  apt-get update && apt-get install -y curl netcat-openbsd
+
+  # Install the snap
+  snap install --dangerous "$PROJECT_PATH"/*.snap
+
+restore: |
+  snap remove statsd-exporter || true
+
+execute: |
+  # Test 1: Configure custom web port
+  echo "Testing custom web port configuration..."
+  snap set statsd-exporter web.listen-port=9202
+  snap start statsd-exporter
+
+  # Wait for service to be ready on custom port
+  for i in $(seq 1 30); do
+    if ss -tuln | grep -q ':9202'; then
+      break
+    fi
+    sleep 1
+  done
+
+  if ! ss -tuln | grep -q ':9202'; then
+    echo "FAIL: statsd-exporter is not listening on custom web port 9202"
+    journalctl -u snap.statsd-exporter.statsd-exporter.service --no-pager -n 50
+    exit 1
+  fi
+  echo "PASS: statsd-exporter is listening on custom web port 9202"
+
+  # Verify metrics endpoint works on custom port
+  if ! curl -sf http://localhost:9202/metrics | grep -q "statsd_exporter_build_info"; then
+    echo "FAIL: Could not fetch metrics from custom port 9202"
+    exit 1
+  fi
+  echo "PASS: Metrics endpoint accessible on custom port 9202"
+
+  # Verify default port is not in use
+  if ss -tuln | grep -q ':9102'; then
+    echo "FAIL: Default port 9102 should not be listening"
+    exit 1
+  fi
+  echo "PASS: Default web port 9102 is not in use"
+
+  snap stop statsd-exporter
+
+  # Test 2: Configure custom StatsD UDP port
+  echo "Testing custom StatsD UDP port configuration..."
+  snap set statsd-exporter statsd.listen-udp-port=9225
+  snap start statsd-exporter
+
+  # Wait for service to be ready
+  for i in $(seq 1 30); do
+    if ss -tuln | grep -q ':9225'; then
+      break
+    fi
+    sleep 1
+  done
+
+  if ! ss -tuln | grep -q ':9225'; then
+    echo "FAIL: statsd-exporter is not listening on custom UDP port 9225"
+    journalctl -u snap.statsd-exporter.statsd-exporter.service --no-pager -n 50
+    exit 1
+  fi
+  echo "PASS: statsd-exporter is listening on custom UDP port 9225"
+
+  # Send a metric to the custom UDP port
+  echo "test.custom.port:1|c" | nc -u -w1 127.0.0.1 9225
+  sleep 2
+
+  # Verify the metric was received
+  METRICS=$(curl -sf http://localhost:9202/metrics)
+  if echo "$METRICS" | grep -q "statsd_exporter_events_total"; then
+    echo "PASS: Metrics received on custom UDP port"
+  fi
+
+  snap stop statsd-exporter
+
+  # Test 3: Configure custom StatsD TCP port
+  echo "Testing custom StatsD TCP port configuration..."
+  snap set statsd-exporter statsd.listen-tcp-port=9226
+  snap start statsd-exporter
+
+  # Wait for service to be ready
+  for i in $(seq 1 30); do
+    if ss -tuln | grep -q ':9226'; then
+      break
+    fi
+    sleep 1
+  done
+
+  if ! ss -tuln | grep -q ':9226'; then
+    echo "FAIL: statsd-exporter is not listening on custom TCP port 9226"
+    journalctl -u snap.statsd-exporter.statsd-exporter.service --no-pager -n 50
+    exit 1
+  fi
+  echo "PASS: statsd-exporter is listening on custom TCP port 9226"
+
+  # Send a metric via TCP to the custom port
+  echo "test.tcp.custom:1|c" | nc -w1 127.0.0.1 9226
+  sleep 2
+
+  echo "PASS: TCP listener working on custom port"
+
+  snap stop statsd-exporter
+
+  # Test 4: Verify snap get shows configuration
+  echo "Testing snap get configuration..."
+  WEB_PORT=$(snap get statsd-exporter web.listen-port)
+  if [ "$WEB_PORT" != "9202" ]; then
+    echo "FAIL: snap get web.listen-port returned '$WEB_PORT', expected '9202'"
+    exit 1
+  fi
+  echo "PASS: snap get returns correct configuration"
+
+  # Test 5: Reset to defaults by unsetting
+  echo "Testing configuration reset..."
+  snap unset statsd-exporter web.listen-port
+  snap unset statsd-exporter statsd.listen-udp-port
+  snap unset statsd-exporter statsd.listen-tcp-port
+  snap start statsd-exporter
+
+  # Wait for service on default port
+  for i in $(seq 1 30); do
+    if ss -tuln | grep -q ':9102'; then
+      break
+    fi
+    sleep 1
+  done
+
+  if ! ss -tuln | grep -q ':9102'; then
+    echo "FAIL: statsd-exporter not listening on default port 9102 after reset"
+    exit 1
+  fi
+  echo "PASS: Default ports restored after unsetting configuration"
+
+  echo ""
+  echo "=== All port configuration tests passed! ==="
