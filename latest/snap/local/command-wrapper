@@ -21,4 +21,22 @@ if [ -z "$ARGS" ] && [ -f "$SNAP_CONFIG" ]; then
     ARGS="--statsd.mapping-config=$SNAP_CONFIG"
 fi
 
+# Read port configuration from snap config
+WEB_PORT=$(snapctl get web.listen-port)
+STATSD_UDP_PORT=$(snapctl get statsd.listen-udp-port)
+STATSD_TCP_PORT=$(snapctl get statsd.listen-tcp-port)
+
+# Apply port configuration if set
+if [ -n "$WEB_PORT" ]; then
+    ARGS="$ARGS --web.listen-address=:$WEB_PORT"
+fi
+
+if [ -n "$STATSD_UDP_PORT" ]; then
+    ARGS="$ARGS --statsd.listen-udp=:$STATSD_UDP_PORT"
+fi
+
+if [ -n "$STATSD_TCP_PORT" ]; then
+    ARGS="$ARGS --statsd.listen-tcp=:$STATSD_TCP_PORT"
+fi
+
 exec "$SNAP/bin/statsd_exporter" $ARGS

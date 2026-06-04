@@ -46,6 +46,30 @@ sudo snap stop statsd-exporter
 
 ## Configuration
 
+### Port Configuration
+
+The default ports can be changed using snap configuration:
+
+```bash
+# Change the Prometheus metrics endpoint port (default: 9102)
+sudo snap set statsd-exporter web.listen-port=9103
+
+# Change the StatsD UDP listener port (default: 9125)
+sudo snap set statsd-exporter statsd.listen-udp-port=9126
+
+# Change the StatsD TCP listener port (default: 9125)
+sudo snap set statsd-exporter statsd.listen-tcp-port=9126
+
+# Restart to apply changes
+sudo snap restart statsd-exporter
+```
+
+To view current configuration:
+
+```bash
+sudo snap get statsd-exporter
+```
+
 ### Mapping Configuration
 
 The daemon looks for mapping configuration in the following order:
