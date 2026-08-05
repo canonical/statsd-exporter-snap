@@ -1,6 +1,7 @@
 name: Release Snap
 
 on:
+  workflow_disptach: {}
   push:
     branches:
       - main
